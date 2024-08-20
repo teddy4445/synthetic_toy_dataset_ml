@@ -32,7 +32,7 @@ def generate_dataframe(num_samples, distributions):
     return pd.DataFrame(data)
 
 
-def optimize_columns_using_genetic_algorithm(df, cols_to_add, loss_function, num_generations=50, population_size=100):
+def optimize_columns_using_genetic_algorithm(df, cols_to_add, loss_function, y_function=None, num_generations=100, population_size=10):
     """
     Use a genetic algorithm to optimize and add new columns to minimize the loss function.
 
@@ -65,7 +65,12 @@ def optimize_columns_using_genetic_algorithm(df, cols_to_add, loss_function, num
         df_copy = df.copy()
         for i, col in enumerate(individual):
             df_copy[f'new_col_{i + 1}'] = col
-        return loss_function(df_copy),
+        # critical change:
+        if y_function:
+            df_with_y = y_function(df_copy)
+            return (loss_function(df_with_y), )
+        else:
+            loss_function(df_copy)
 
     toolbox.register("mate", tools.cxTwoPoint)
     toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.1)
@@ -76,8 +81,8 @@ def optimize_columns_using_genetic_algorithm(df, cols_to_add, loss_function, num
     population = toolbox.population(n=population_size)
 
     # Run the genetic algorithm
-    algorithms.eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=num_generations,
-                        stats=None, halloffame=None, verbose=False)
+    algorithms.eaSimple(population, toolbox, cxpb=0.8, mutpb=0.2, ngen=num_generations,
+                        stats=None, halloffame=None, verbose=True) ### next time try try 'verbose = True' 
 
     # Get the best individual
     best_individual = tools.selBest(population, k=1)[0]
@@ -88,7 +93,7 @@ def optimize_columns_using_genetic_algorithm(df, cols_to_add, loss_function, num
     return df
 
 
-def generate_synthetic_dataset_ml(num_samples, distributions, cols_to_add, loss_function, y_function):
+def generate_synthetic_dataset_ml(num_samples, distributions, cols_to_add, loss_function, y_function=None, create_label=None):
     """
     Generate a synthetic dataset, compute a positive number using a loss function,
     and add a 'y' column using a y_function.
@@ -109,10 +114,14 @@ def generate_synthetic_dataset_ml(num_samples, distributions, cols_to_add, loss_
     df = generate_dataframe(num_samples, distributions)
 
     # Optimize and add new columns using the genetic algorithm
-    df = optimize_columns_using_genetic_algorithm(df, cols_to_add, loss_function)
+    df = optimize_columns_using_genetic_algorithm(df, cols_to_add, loss_function, y_function)
 
-    # Add the 'y' column using the y_function
-    df_with_y = y_function(df)
+    # Add the 'y' column using the y_function if provided, otherwise use create_label if provided
+    if y_function:
+        df_with_y = y_function(df)
+    elif create_label:
+        df_with_y = create_label(df)
+    else:
+        df_with_y = df
 
     return df_with_y
-
