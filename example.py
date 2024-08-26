@@ -75,7 +75,7 @@ def pearson_correlation_matrix(df):
 
 def create_label(df, alpha=0.1):
     """
-        Creates binary label column 'y' based on K-means clustering 
+        Creates binary label column 'y' based on K-means clustering
         with K=2 and swaps some labels with a given probability alpha.
 
         Parameters:
@@ -89,16 +89,20 @@ def create_label(df, alpha=0.1):
     # Check if alpha is a probability
     if not 0 <= alpha <= 1:
         raise ValueError("Alpha must be between 0 and 1")
-    
+
+    # Standard Scaling, otherwise clustering is biased
+    scaler = StandardScaler().set_output(transform="pandas")
+    df_scaled = scaler.fit_transform(df)
+
     # Apply K-means clustering with K=2
     kmeans = KMeans(n_clusters=2, random_state=42)
-    df['y'] = kmeans.fit_predict(df)
+    df_scaled['y'] = kmeans.fit_predict(df_scaled)
 
     # Introduce noise by swapping labels with probability alpha
-    swap_mask = np.random.rand(len(df)) < alpha
-    df.loc[swap_mask, 'y'] = 1 - df.loc[swap_mask, 'y']
+    swap_mask = np.random.rand(len(df_scaled)) < alpha
+    df_scaled.loc[swap_mask, 'y'] = 1 - df_scaled.loc[swap_mask, 'y']
 
-    return df
+    return df_scaled
 
 
 def run(num_samples):
